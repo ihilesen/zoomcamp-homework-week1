@@ -29,36 +29,53 @@ $BROWSER http://localhost:8080
 # login: pgadmin@pgadmin.com / pgadmin
 ```
 
-3) Prepare data (download + convert)
+3) Install dependencies
 ```bash
-# install minimal runtime deps if needed
-python -m pip install --user pandas pyarrow
-
-# prepare files (creates data/*.csv.gz)
-python prepare_data.py
+python -m pip install --user sqlalchemy psycopg2-binary pandas pyarrow pgcli
 ```
 
-4) Install ingest dependencies
+4) Ingest datasets into Postgres
 ```bash
-python -m pip install --user sqlalchemy psycopg2-binary pandas
+# green tripdata (parquet format)
+python ingest.py data/raw/green_tripdata_2025-11.parquet
+
+# taxi zones (CSV format)
+python -c "
+import pandas as pd
+from sqlalchemy import create_engine
+DB_URL = 'postgresql://postgres:postgres@localhost:5433/ny_taxi'
+engine = create_engine(DB_URL)
+df = pd.read_csv('data/raw/taxi_zone_lookup.csv')
+df.to_sql('taxi_zone_lookup', engine, if_exists='replace', index=False)
+print(f'Ingested {len(df)} rows into taxi_zone_lookup')
+"
 ```
 
-5) Ingest datasets into Postgres (from host / devcontainer -> postgres mapped to 5433)
-```bash
-# main dataset
-python ingest_data.py \
-  --csv data/green_tripdata_2025-11.csv.gz \
-  --table green_trips \
-  --host localhost --port 5433 --user postgres --password postgres --db ny_taxi
+5) Access the database
 
-# zones dataset
-python ingest_data.py \
-  --csv data/taxi_zone_lookup.csv.gz \
-  --table taxi_zones \
-  --host localhost --port 5433 --user postgres --password postgres --db ny_taxi
+**pgAdmin (GUI)** - Open http://localhost:8080
+- Login: pgadmin@pgadmin.com / pgadmin
+- Database: ny_taxi (postgres:postgres@localhost:5433)
+
+**pgcli (CLI)** - Interactive SQL shell
+```bash
+pgcli postgresql://postgres:postgres@localhost:5433/ny_taxi
+```
+
+**Python** - Programmatic access
+```python
+from sqlalchemy import create_engine
+engine = create_engine('postgresql://postgres:postgres@localhost:5433/ny_taxi')
+df = pd.read_sql('SELECT * FROM green_tripdata LIMIT 5', engine)
 ```
 
 6) Stop and remove services and volumes
 ```bash
 docker compose down -v
 ```
+
+## Ingested Tables
+
+- **green_tripdata** (46,912 rows) - Green taxi trip data with columns: VendorID, lpep_pickup_datetime, lpep_dropoff_datetime, store_and_fwd_flag, RatecodeID, PULocationID, DOLocationID, passenger_count, trip_distance, fare_amount, extra, mta_tax, tip_amount, tolls_amount, ehail_fee, improvement_surcharge, total_amount, payment_type, trip_type, congestion_surcharge, cbd_congestion_fee
+
+- **taxi_zone_lookup** (265 rows) - Taxi zone reference table with columns: LocationID, Borough, Zone, service_zone
