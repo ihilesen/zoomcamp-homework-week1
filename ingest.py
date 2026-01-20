@@ -2,7 +2,7 @@ import pandas as pd
 from sqlalchemy import create_engine
 import sys
 
-DB_URL = "postgresql://postgres:postgres@db:5432/ny_taxi"
+DB_URL = "postgresql://postgres:postgres@localhost:5433/ny_taxi"
 
 def ingest_parquet(file_path, table_name):
     engine = create_engine(DB_URL)

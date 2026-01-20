@@ -7,6 +7,11 @@ Prerequisites:
 - Python 3.13 available in the devcontainer
 - wget present on PATH
 
+check pip version
+```
+docker run -it --rm --entrypoint bash python:3.13
+pip --version
+```
 1) Start services (recommended)
 ```bash
 docker compose up -d
